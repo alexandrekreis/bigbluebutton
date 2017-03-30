@@ -20,12 +20,14 @@
 package org.bigbluebutton.clientcheck.view.mainview
 {
 	import spark.components.Button;
-	import spark.components.DataGrid;
+	import spark.components.List;
 	import spark.components.BorderContainer;
 
 	public interface IMainView
 	{
-		function get dataGrid():DataGrid;
+		function get checkList():List;
 		function get view():BorderContainer;
+		function setCheckResult(checkResult:int):void;
+		function updateItemLabels():void;
 	}
 }

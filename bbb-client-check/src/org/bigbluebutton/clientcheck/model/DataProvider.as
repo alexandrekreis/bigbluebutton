@@ -38,17 +38,9 @@ package org.bigbluebutton.clientcheck.model
 			return _dataProvider;
 		}
 
-		private function sortData():void
+		private function dataChanged(currentObj:Object, newObj:Object):Boolean
 		{
-			var itemSortField:SortField = new SortField();
-			var statusSortField:SortField = new SortField();
-			itemSortField.name = "Item";
-			statusSortField.name = "StatusPriority";
-			statusSortField.numeric = true;
-			var dataSort:Sort = new Sort();
-			dataSort.fields = [statusSortField, itemSortField];
-			_dataProvider.sort = dataSort;
-			_dataProvider.refresh();
+			return (currentObj.StatusPriority != newObj.StatusPriority) || (currentObj.Result != newObj.Result)
 		}
 
 		public function updateData(obj:Object, status:Object):void
@@ -60,12 +52,15 @@ package org.bigbluebutton.clientcheck.model
 
 			if (_dataProvider.getItemAt(i).Item == merged.Item)
 			{
-				_dataProvider.removeItemAt(i);
-				_dataProvider.addItemAt(merged, i);
+				if(dataChanged(_dataProvider.getItemAt(i),merged))
+				{
+					_dataProvider.getItemAt(i).StatusPriority = merged.StatusPriority;
+					_dataProvider.getItemAt(i).StatusMessage = merged.StatusMessage;
+					_dataProvider.getItemAt(i).Result = merged.Result;
+					_dataProvider.itemUpdated(_dataProvider.getItemAt(i));
+				}
 			}
 			else trace("Something is missing at MainViewMediator's initDataProvider");
-
-			sortData();
 		}
 
 		public function mergeWithStatusObject(obj:Object, status:Object):Object

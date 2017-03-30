@@ -46,6 +46,13 @@
 			private function setLanguage():void
 			{
 				language = ExternalInterface.call("getLanguage");
+
+				//if it's spanish we need to force 'es_ES'
+				if(language.split("_")[0] == "es")
+				{
+					language = "es_ES";
+				}
+
 				if (resourceManager.getLocales().indexOf(language) != -1)
 				{
 					resourceManager.localeChain = [language, DEFAULT_LOCALE];

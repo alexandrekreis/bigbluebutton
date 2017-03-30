@@ -31,6 +31,7 @@ package org.bigbluebutton.clientcheck.model.test
 
 		private var _testResult:String;
 		private var _testSuccessfull:Boolean;
+		private var _lastUpdate:Boolean;
 		private var _downloadSpeedTestSuccessfullChangedSignal:ISignal=new Signal;
 
 		public function get testResult():String
@@ -48,11 +49,22 @@ package org.bigbluebutton.clientcheck.model.test
 			return _testSuccessfull;
 		}
 
+		public function get lastUpdate():Boolean
+		{
+			return _lastUpdate;
+		}
+
+		public function set lastUpdate(value:Boolean):void
+		{
+			 _lastUpdate=value;
+		}
+
 		public function set testSuccessfull(value:Boolean):void
 		{
 			_testSuccessfull=value;
 			_downloadSpeedTestSuccessfullChangedSignal.dispatch();
 		}
+
 
 		public function get downloadSpeedTestSuccessfullChangedSignal():ISignal
 		{

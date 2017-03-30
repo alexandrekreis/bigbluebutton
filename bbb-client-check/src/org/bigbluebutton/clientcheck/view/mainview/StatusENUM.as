@@ -25,6 +25,10 @@ package org.bigbluebutton.clientcheck.view.mainview
 		public static const FAILED:Object = {StatusMessage: ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.status.failed'), StatusPriority: 1};
 		public static const WARNING:Object = {StatusMessage: ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.status.warning'), StatusPriority: 2};
 		public static const LOADING:Object = {StatusMessage: ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.status.loading'), StatusPriority: 3};
-		public static const SUCCEED:Object = {StatusMessage: ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.status.succeeded'), StatusPriority: 4};
+		public static const SUCCEED:Object = {StatusMessage: ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.status.success'), StatusPriority: 4};
+
+		public static const CLIENT_CHECK_SUCCEEDED:int = 1;
+		public static const CLIENT_CHECK_FAILED:int = 2;
+		public static const CLIENT_CHECK_WARNING:int = 3;
 	}
 }

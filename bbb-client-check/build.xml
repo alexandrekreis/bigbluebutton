@@ -55,7 +55,7 @@
 		<mxmlc file="${SRC_DIR}/BBBClientCheck.mxml"
 			   output="check/BBBClientCheck.swf"
 			   debug="false"
-			   locale="en_US,pt_BR"
+			   locale="en_US,pt_BR,es_ES"
 			   actionscript-file-encoding="UTF-8"
 			   incremental="false">
 			<static-link-runtime-shared-libraries>false</static-link-runtime-shared-libraries>

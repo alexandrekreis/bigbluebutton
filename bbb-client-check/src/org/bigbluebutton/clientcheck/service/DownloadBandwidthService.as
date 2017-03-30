@@ -102,6 +102,7 @@ package org.bigbluebutton.clientcheck.service
 				msg = dataFormatter.format(speed) + " Mbps (" + dataFormatter.format(loadedInMB) + " MB, " + (NUM_OF_SECONDS - _secondsCounter) + " seconds remaining)";
 			}
 			systemConfiguration.downloadBandwidthTest.testResult=msg;
+			systemConfiguration.downloadBandwidthTest.lastUpdate=lastUpdate;
 			systemConfiguration.downloadBandwidthTest.testSuccessfull=true;
 		}
 

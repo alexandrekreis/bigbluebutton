@@ -24,12 +24,14 @@ package org.bigbluebutton.clientcheck.view.mainview
 	import flash.system.System;
 	import flash.ui.ContextMenu;
 	import flash.ui.ContextMenuItem;
+	import flash.events.MouseEvent
 
 	import mx.events.FlexEvent;
+	import mx.resources.ResourceManager;
 
 	import spark.components.BorderContainer;
 	import spark.components.Button;
-	import spark.components.DataGrid;
+	import spark.components.List;
 
 	public class MainView extends MainViewBase implements IMainView
 	{
@@ -40,21 +42,49 @@ package org.bigbluebutton.clientcheck.view.mainview
 
 		protected function creationCompleteHandler(event:Event):void
 		{
-			var contextMenu:ContextMenu=new ContextMenu();
-			contextMenu.hideBuiltInItems();
+			var generalContextMenu:ContextMenu=new ContextMenu();
+			generalContextMenu.hideBuiltInItems();
+			var copyAllResultsButton:ContextMenuItem=new ContextMenuItem(resourceManager.getString('resources', 'bbbsystemcheck.copyAllResultsText'));
+			copyAllResultsButton.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menuItemHandler);
+			generalContextMenu.customItems.push(copyAllResultsButton);
+			this.contextMenu=generalContextMenu;
 
-			var copyAllButton:ContextMenuItem=new ContextMenuItem(resourceManager.getString('resources', 'bbbsystemcheck.copyAllText'));
-			copyAllButton.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menuItemHandler);
-			contextMenu.customItems.push(copyAllButton);
+			var checkResultContextMenu:ContextMenu=new ContextMenu();
+			checkResultContextMenu.hideBuiltInItems();
+			var checkResultButton:ContextMenuItem=new ContextMenuItem(resourceManager.getString('resources', 'bbbsystemcheck.copyCheckResultText'));
+			checkResultButton.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menuItemHandler);
+			checkResultContextMenu.customItems.push(checkResultButton);
+			this.resultImg.contextMenu=checkResultContextMenu;
+			this.resultTitleLabel.contextMenu=checkResultContextMenu;
+			this.resultDescriptionLabel.contextMenu=checkResultContextMenu;
 
-			this.contextMenu=contextMenu;
+			var itemResultContextMenu:ContextMenu=new ContextMenu();
+			itemResultContextMenu.hideBuiltInItems();
+			var copyItemResultButton:ContextMenuItem=new ContextMenuItem(resourceManager.getString('resources', 'bbbsystemcheck.copyItemResultText'));
+			copyItemResultButton.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, menuItemHandler);
+			itemResultContextMenu.customItems.push(copyItemResultButton);
+			this.itemResultLabel.contextMenu=itemResultContextMenu;
+
+			this.checkList.addEventListener(MouseEvent.CLICK,clickHandler);
+
+
 		}
 
-		protected function menuItemHandler(e:ContextMenuEvent):void
+		private function menuItemHandler(e:ContextMenuEvent):void
 		{
-			if (e.target.caption == resourceManager.getString('resources', 'bbbsystemcheck.copyAllText'))
+			if (e.target.caption == resourceManager.getString('resources', 'bbbsystemcheck.copyAllResultsText'))
 			{
 				System.setClipboard(getAllInfoAsString());
+			}
+
+			else if (e.target.caption == resourceManager.getString('resources', 'bbbsystemcheck.copyCheckResultText'))
+			{
+				System.setClipboard(getClientCheckResultInfoAsString());
+			}
+
+			else if (e.target.caption == resourceManager.getString('resources', 'bbbsystemcheck.copyItemResultText'))
+			{
+				System.setClipboard(getResultInfoAsString());
 			}
 		}
 
@@ -62,17 +92,78 @@ package org.bigbluebutton.clientcheck.view.mainview
 		{
 			var info:String="";
 
-			for (var i:int=0; i < dataGrid.dataProvider.length; i++)
+			for (var i:int=0; i < checkList.dataProvider.length; i++)
 			{
-				info+=dataGrid.dataProvider.getItemAt(i).Item + ":  " + dataGrid.dataProvider.getItemAt(i).Result + "  :  " + dataGrid.dataProvider.getItemAt(i).Status + "\n";
+				info+=checkList.dataProvider.getItemAt(i).Item + ":  " + checkList.dataProvider.getItemAt(i).Result + "  :  " + checkList.dataProvider.getItemAt(i).StatusMessage + "\n";
 			}
 
 			return info;
 		}
 
-		public function get dataGrid():DataGrid
+		private function getClientCheckResultInfoAsString():String
 		{
-			return _dataGrid;
+			var info:String="";
+
+			info = this.resultTitleLabel.text + ":  " + this.resultDescriptionLabel.text;
+
+			return info;
+		}
+
+		private function getResultInfoAsString():String
+		{
+			var info:String="";
+
+			if(checkList.selectedIndex>=0 && checkList.selectedIndex < checkList.dataProvider.length) {
+				var i:int = checkList.selectedIndex;
+				info = checkList.dataProvider.getItemAt(i).Item + ":  " + checkList.dataProvider.getItemAt(i).Result + "  :  " + checkList.dataProvider.getItemAt(i).StatusMessage;
+			}
+
+			return info;
+		}
+
+		private function clickHandler(event:MouseEvent):void
+		{
+			updateItemLabels();
+		}
+
+		public function updateItemLabels():void
+		{
+			if(checkList.selectedIndex>=0)
+			{
+				var checkListItem:Object = checkList.dataProvider.getItemAt(checkList.selectedIndex);
+
+				var downloadSpeedItem:String = ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.test.name.downloadSpeed');
+				if(checkListItem.Item != downloadSpeedItem && checkListItem.StatusPriority == StatusENUM.LOADING.StatusPriority)
+					itemResultLabel.text = checkListItem.Item + ": " + StatusENUM.LOADING.StatusMessage;
+				else
+					itemResultLabel.text = checkListItem.Item + ": " + checkListItem.Result;
+
+			}
+		}
+
+		public function setCheckResult(checkResult:int):void {
+			switch (checkResult) {
+				case StatusENUM.CLIENT_CHECK_SUCCEEDED:
+					resultTitleLabel.text = resourceManager.getString('resources', 'bbbsystemcheck.clientcheck.result.success.title');
+					resultDescriptionLabel.text = resourceManager.getString('resources', 'bbbsystemcheck.clientcheck.result.success.description');
+					resultImg.source = images.ok_icon;
+					break;
+				case StatusENUM.CLIENT_CHECK_FAILED:
+					resultTitleLabel.text = resourceManager.getString('resources', 'bbbsystemcheck.clientcheck.result.failed.title');
+					resultDescriptionLabel.text = resourceManager.getString('resources', 'bbbsystemcheck.clientcheck.result.failed.description');
+					resultImg.source = images.error_icon;
+					break;
+				case StatusENUM.CLIENT_CHECK_WARNING:
+					resultTitleLabel.text = resourceManager.getString('resources', 'bbbsystemcheck.clientcheck.result.warning.title');
+					resultDescriptionLabel.text = resourceManager.getString('resources','bbbsystemcheck.clientcheck.result.warning.description');
+					resultImg.source = images.warning_icon;
+					break;
+			}
+		}
+
+		public function get checkList():List
+		{
+			return _checkList;
 		}
 
 		public function get view():BorderContainer

@@ -23,6 +23,7 @@ package org.bigbluebutton.clientcheck.view.mainview
 	import flash.events.MouseEvent;
 
 	import mx.collections.ArrayCollection;
+	import mx.events.CollectionEvent
 	import mx.resources.ResourceManager;
 	import mx.utils.ObjectUtil;
 
@@ -88,10 +89,18 @@ package org.bigbluebutton.clientcheck.view.mainview
 		
 		private static var VERSION:String=ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.version');
 
+		private var errorsOcurred:Boolean = false;
+		private var warningsOccurred:Boolean = false;
+
+		private var rtmpAppsResults:ArrayCollection = new ArrayCollection;
+
+
 		override public function initialize():void
 		{
 			super.initialize();
 			view.view.addEventListener(Event.ADDED_TO_STAGE, viewAddedToStageHandler);
+			dp.getData().addEventListener(CollectionEvent.COLLECTION_CHANGE, checkData);
+			rtmpAppsResults.addEventListener(CollectionEvent.COLLECTION_CHANGE, checkRtmpAppsResults);
 		}
 
 		protected function viewAddedToStageHandler(event:Event):void
@@ -105,7 +114,7 @@ package org.bigbluebutton.clientcheck.view.mainview
 			initPropertyListeners();
 			initDataProvider();
 
-			view.dataGrid.dataProvider=dp.getData();
+			view.checkList.dataProvider=dp.getData();
 
 			requestBrowserInfoSignal.dispatch();
 			requestRTMPAppsInfoSignal.dispatch();
@@ -161,13 +170,9 @@ package org.bigbluebutton.clientcheck.view.mainview
 			dp.addData({Item: WebRTCEchoTest.WEBRTC_ECHO_TEST, Result: null}, StatusENUM.LOADING);
 			dp.addData({Item: WebRTCSocketTest.WEBRTC_SOCKET_TEST, Result: null}, StatusENUM.LOADING);
 			dp.addData({Item: WebRTCSupportedTest.WEBRTC_SUPPORTED, Result: null}, StatusENUM.LOADING);
-			if (systemConfiguration.rtmpApps)
-			{
-				for (var i:int=0; i < systemConfiguration.rtmpApps.length; i++)
-				{
-					dp.addData({Item: systemConfiguration.rtmpApps[i].applicationName, Result: null}, StatusENUM.LOADING);
-				}
-			}
+
+			dp.addData({Item: RTMPAppTest.RTMP_APP_TEST, Result: null}, StatusENUM.LOADING);
+
 			if (systemConfiguration.ports)
 			{
 				for (var j:int=0; j < systemConfiguration.ports.length; j++)
@@ -175,8 +180,83 @@ package org.bigbluebutton.clientcheck.view.mainview
 					dp.addData({Item: systemConfiguration.ports[j].portName, Result: null}, StatusENUM.LOADING);
 				}
 			}
-			dp.addData({Item: VERSION, Result: config.getVersion()}, StatusENUM.SUCCEED);
+		}
 
+		public function checkData(event:CollectionEvent):void
+		{
+			view.updateItemLabels();
+			if(checkAllItems()) {
+				if(errorsOcurred)
+					view.setCheckResult(StatusENUM.CLIENT_CHECK_FAILED);
+				else if(warningsOccurred)
+					view.setCheckResult(StatusENUM.CLIENT_CHECK_WARNING);
+				else
+					view.setCheckResult(StatusENUM.CLIENT_CHECK_SUCCEEDED);
+			}
+		}
+
+		private function checkAllItems():Boolean
+		{
+			//check if there are not loading items anymore and if there are errors and warnings
+			for (var i:int=0; i < dp.getData().length; i++) {
+
+				switch(dp.getData().getItemAt(i).StatusPriority) {
+					case StatusENUM.LOADING.StatusPriority:
+						return false;
+					case StatusENUM.FAILED.StatusPriority:
+						if(itemGeneratesSystemError(dp.getData().getItemAt(i).Item))
+							errorsOcurred = true;
+						else
+							warningsOccurred = true;
+						break;
+					case StatusENUM.WARNING.StatusPriority:
+							warningsOccurred = true;
+							break;
+				}
+			}
+
+			return true;
+		}
+
+		private function itemGeneratesSystemError(item:String):Boolean
+		{
+			//Some errors will actually generate a system warning, because we still can run a meeting
+			//(with some functionalities not working).
+			switch (item) {
+				case WebRTCEchoTest.WEBRTC_ECHO_TEST:
+				case WebRTCSupportedTest.WEBRTC_SUPPORTED:
+				case WebRTCSocketTest.WEBRTC_SOCKET_TEST:
+					return false;
+				default:
+					return true;
+			}
+		}
+
+		public function checkRtmpAppsResults(event:CollectionEvent):void
+		{
+			if(rtmpAppsResults.length == systemConfiguration.rtmpApps.length) {
+
+				var appsFailed:String = "";
+
+				for (var i:int=0; i < rtmpAppsResults.length; i++) {
+					if(!rtmpAppsResults[i].appTestSucceeded)
+						appsFailed += "\n" + rtmpAppsResults[i].appName;
+				}
+
+				var status:Object;
+				var result:String;
+				if(appsFailed.length == 0) {
+					status = StatusENUM.SUCCEED;
+					result = ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.result.rtmpConnectivity.succeeded');
+				}
+				else {
+					status = StatusENUM.FAILED;
+					result = ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.result.rtmpConnectivity.failed', [appsFailed]);
+				}
+
+				dp.updateData({Item: RTMPAppTest.RTMP_APP_TEST, Result: result}, status);
+
+			}
 		}
 
 		/**
@@ -199,8 +279,7 @@ package org.bigbluebutton.clientcheck.view.mainview
 
 			if (appObj)
 			{
-				var status:Object = (appObj.testSuccessfull == true) ? StatusENUM.SUCCEED : StatusENUM.FAILED;
-				dp.updateData({Item: appObj.applicationName, Result: appObj.testResult}, status);
+				rtmpAppsResults.addItem({appName: appObj.applicationName, appTestSucceeded: appObj.testSuccessfull});
 			}
 			else
 			{
@@ -241,7 +320,12 @@ package org.bigbluebutton.clientcheck.view.mainview
 
 		private function downloadSpeedTestChangedHandler():void
 		{
-			var status:Object = (systemConfiguration.downloadBandwidthTest.testSuccessfull == true) ? StatusENUM.SUCCEED : StatusENUM.FAILED;
+			var status:Object;
+			if(systemConfiguration.downloadBandwidthTest.testSuccessfull)
+				status = (systemConfiguration.downloadBandwidthTest.lastUpdate == true) ? StatusENUM.SUCCEED : StatusENUM.LOADING;
+			else
+				status = StatusENUM.FAILED;
+
 			dp.updateData({Item: DownloadBandwidthTest.DOWNLOAD_SPEED, Result: systemConfiguration.downloadBandwidthTest.testResult}, status);
 		}
 

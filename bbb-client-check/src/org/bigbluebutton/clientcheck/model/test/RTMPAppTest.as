@@ -19,11 +19,15 @@
 
 package org.bigbluebutton.clientcheck.model.test
 {
+	import mx.resources.ResourceManager;
+
 	import org.osflash.signals.ISignal;
 	import org.osflash.signals.Signal;
 
 	public class RTMPAppTest implements IRTMPAppTest
 	{
+		public static var RTMP_APP_TEST:String=ResourceManager.getInstance().getString('resources', 'bbbsystemcheck.test.name.rtmpConnectivity');
+
 		private var _applicationUri:String;
 		private var _applicationName:String;
 		private var _testResult:String;

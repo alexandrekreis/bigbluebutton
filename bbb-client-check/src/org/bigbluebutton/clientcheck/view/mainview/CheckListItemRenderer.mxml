@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009"
+					xmlns:s="library://ns.adobe.com/flex/spark"
+					xmlns:mx="library://ns.adobe.com/flex/mx"
+					clipAndEnableScrolling="true"
+					creationComplete="init()" >
+
+	<fx:Script>
+		<![CDATA[
+
+			import org.bigbluebutton.clientcheck.view.common.Images;
+
+			private static var FAILED:int = 1;
+			private static var WARNING:int = 2;
+			private static var LOADING:int = 3;
+			private static var SUCCEEDED:int = 4;
+			private var images:Images = new Images();
+
+			public function init():void {
+				var copyResultButton:ContextMenuItem=new ContextMenuItem(resourceManager.getString('resources', 'bbbsystemcheck.copyItemResultText'));
+				copyResultButton.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, OnMenuItemSelected);
+
+				var customContextMenu:ContextMenu=new ContextMenu();
+				customContextMenu.hideBuiltInItems();
+
+				customContextMenu.customItems.push(copyResultButton);
+				this.contextMenu=customContextMenu;
+			}
+
+			private function OnMenuItemSelected(e:ContextMenuEvent):void
+			{
+				System.setClipboard(getResultInfoAsString());
+			}
+
+			private function getResultInfoAsString():String
+			{
+				var info:String="";
+
+				info = data.Item + ":  " + data.Result + "  :  " + data.StatusMessage;
+
+				return info;
+			}
+
+
+			override public function set data(value:Object):void
+			{
+				super.data=value;
+
+				itemLabel.text = data.Item;
+
+				switch (data.StatusPriority) {
+					case LOADING:
+						statusImg.source = images.loading_icon;
+						statusImg.visible = true;
+						break;
+					case SUCCEEDED:
+						statusImg.source = images.ok_icon;
+						statusImg.visible = true;
+						break;
+					case WARNING:
+						statusImg.source = images.warning_icon;
+						statusImg.visible = true;
+						break;
+					case FAILED:
+						statusImg.source = images.error_icon;
+						statusImg.visible = true;
+						break;
+					default:
+						statusImg.visible = false;
+						break;
+				}
+			}
+		]]>
+	</fx:Script>
+
+	<mx:HBox>
+		<s:Image id="statusImg" visible="false"/>
+		<s:Label id="itemLabel" styleName="checkListItemStyle"/>
+	</mx:HBox>
+
+</s:ItemRenderer>

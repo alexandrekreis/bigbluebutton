@@ -27,5 +27,77 @@ s|Application {
 
 .errorLabelStyle {
 	fontFamily: Arial;
-	fontSize: 12;    
+	fontSize: 12;
+}
+
+.checkListStyle {
+	borderStyle: none;
+	borderAlpha: 0;
+	borderThickness: 0;
+	contentBackgroundAlpha : 0;
+}
+
+.checkListItemStyle {
+	paddingTop: 25;
+	fontFamily: Arial;
+	fontSize: 17.5;
+	fontWeight: bold;
+}
+
+.clientCheckResultStyle {
+	backgroundColor: #737373;
+	borderStyle: none;
+	borderAlpha: 0;
+	borderThickness: 0;
+	cornerRadius: 6;
+	paddingTop: 100;
+	horizontalAlign: center;
+}
+
+.TextResultTitleStyle {
+	paddingBottom: 20;
+	color: #f2f2f2;
+	textAlign: center;
+	fontFamily: Arial;
+	fontSize: 27;
+	fontWeight: bold;
+}
+
+.TextResultDescriptionStyle {
+	paddingLeft: 80;
+	paddingRight: 80;
+	textAlign: center;
+	color: #f2f2f2;
+	fontFamily: Arial;
+	fontSize: 18;
+	fontWeight: bold;
+}
+
+.detailedInformationSeparatorStyle {
+	strokeColor: #737373;
+	shadowColor: #737373;
+	strokeWidth: 2;
+}
+
+.detailedInformationTitleLabelStyle {
+	paddingTop: 14;
+	paddingLeft: 16;
+	fontFamily: Arial;
+	fontSize: 23;
+	fontWeight: bold;
+}
+
+.detailedInformationSubtitleLabelStyle {
+	paddingTop: 15;
+	paddingLeft: 16;
+	fontFamily: Arial;
+	fontSize: 17;
+}
+
+.checkListItemResultStyle {
+	paddingTop: 20;
+	paddingLeft: 16;
+	fontFamily: Arial;
+	fontSize: 18;
+	fontWeight: bold;
 }
