@@ -181,7 +181,7 @@ function getDeskshareDimension(time) {
 }
 
 function isThereDeskshareVideo() {
-  var deskshareVideo = document.getElementById("deskshare-video");
+  var deskshareVideo = document.getElementById("deskshare-video-canvas");
   if (deskshareVideo != null) {
     return true;
   } else {
@@ -196,12 +196,12 @@ function handlePresentationAreaContent(time) {
   var mustShow = mustShowDesktopVideo(time);
   if(!sharingDesktop && mustShow) {
     console.log("Showing deskshare video...");
-    document.getElementById("deskshare-video").style.visibility = "visible";
+    document.getElementById("deskshare-video-canvas").style.visibility = "visible";
     $('#slide').addClass('no-background');
     sharingDesktop = true;
   } else if(sharingDesktop && !mustShow) {
     console.log("Hiding deskshare video...");
-    document.getElementById("deskshare-video").style.visibility = "hidden";
+    document.getElementById("deskshare-video-canvas").style.visibility = "hidden";
     $('#slide').removeClass('no-background');
     sharingDesktop = false;
   }
@@ -711,8 +711,6 @@ function initPopcorn() {
   console.log("** startTime = " + startTime);
 
   Popcorn("#video").currentTime(startTime);
-  if(isThereDeskshareVideo())
-    Popcorn("#deskshare-video").currentTime(startTime);
 
   //Popcorn documentation suggests this way to get the duration, since this information does not come with 'loadedmetadata' event.
   Popcorn("#video").cue(2, function() {
@@ -979,16 +977,17 @@ var resizeSlides = function() {
 
 var resizeDeshareVideo = function() {
   if (!isThereDeskshareVideo()) return;
-  var deskshareVideo = document.getElementById("deskshare-video");
-  var $deskhareVideo = $("#deskshare-video");
+  var deskshareVideoCanvas = document.getElementById("deskshare-video-canvas");
 
-  var videoWidth = parseInt(deskshareVideo.videoWidth, 10);
-  var videoHeight = parseInt(deskshareVideo.videoHeight, 10);
+  var canvasWidth = parseInt(deskshareVideoCanvas.width, 10);
+  var canvasHeight = parseInt(deskshareVideoCanvas.height, 10);
+  var aspectRatio = canvasWidth/canvasHeight;
 
-  var aspectRatio = videoWidth/videoHeight;
-  var max = aspectRatio * $deskhareVideo.parent().outerHeight();
-  $deskhareVideo.css("max-width", max);
+  var $deskhareVideoCanvas = $("#deskshare-video-canvas");
 
-  var height = $deskhareVideo.parent().width() / aspectRatio;
-  $deskhareVideo.css("max-height", height);
+  var max = aspectRatio * $deskhareVideoCanvas.parent().outerHeight();
+  $deskhareVideoCanvas.css("max-width", max);
+
+  var height = $deskhareVideoCanvas.parent().width() / aspectRatio;
+  $deskhareVideoCanvas.css("max-height", height);
 };

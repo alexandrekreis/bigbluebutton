@@ -487,7 +487,7 @@ module BigBlueButton
   end
   
   def BigBlueButton.process_webcam_videos(target_dir, temp_dir, meeting_id, output_width, output_height, audio_offset, processed_audio_file)
-    BigBlueButton.logger.info("Processing webcam videos")
+    BigBlueButton.logger.info("Processing webcam videos only...")
 
     # Process user video (camera)
     webcam_edl = BigBlueButton::Events.create_webcam_edl(
@@ -524,8 +524,8 @@ module BigBlueButton
     end
   end
 
-  def BigBlueButton.process_deskshare_videos(target_dir, temp_dir, meeting_id, output_width, output_height)
-    BigBlueButton.logger.info("Processing deskshare videos")
+  def BigBlueButton.process_deskshare_videos(target_dir, temp_dir, meeting_id, output_width, output_height, audio_offset, processed_audio_file)
+    BigBlueButton.logger.info("Processing deskshare videos only...")
 
     deskshare_edl = BigBlueButton::Events.create_deskshare_edl(
       "#{temp_dir}/#{meeting_id}")
@@ -542,7 +542,7 @@ module BigBlueButton
     }
 
     deskshare_video_file = BigBlueButton::EDL::Video.render(
-      deskshare_video_edl, deskshare_layout, "#{target_dir}/deskshare")
+      deskshare_video_edl, deskshare_layout, "#{target_dir}/webcams")
 
     formats = [
       {
@@ -560,7 +560,70 @@ module BigBlueButton
     ]
     formats.each do |format|
       filename = BigBlueButton::EDL::encode(
-        nil, deskshare_video_file, format, "#{target_dir}/deskshare", 0)
+        processed_audio_file, deskshare_video_file, format, "#{target_dir}/webcams", audio_offset)
+    end
+  end
+
+  def BigBlueButton.process_all_videos(target_dir, temp_dir, meeting_id, webcam_width, webcam_height, deskshare_width, deskshare_height, audio_offset, processed_audio_file)
+    BigBlueButton.logger.info("Processing all videos...")
+
+    deskshare_edl = BigBlueButton::Events.create_deskshare_edl(
+      "#{temp_dir}/#{meeting_id}")
+    deskshare_video_edl = BigBlueButton::Events.edl_match_recording_marks_video(deskshare_edl, "#{temp_dir}/#{meeting_id}")
+
+    if !BigBlueButton.video_recorded?(deskshare_video_edl)
+       BigBlueButton.logger.info("process_all_videos: deskshare not recorded...")
+       process_webcam_videos(target_dir, temp_dir, meeting_id, webcam_width, webcam_height, audio_offset, processed_audio_file)
+    else
+      #finishing deskshare processing
+      BigBlueButton::EDL::Video.dump(deskshare_video_edl)
+
+      deskshare_layout = {
+        :width => deskshare_width, :height => deskshare_height,
+        :areas => [ { :name => :deskshare, :x => 0, :y => 0,
+          :width => deskshare_width, :height => deskshare_height } ]
+      }
+
+      deskshare_video_file = BigBlueButton::EDL::Video.render(
+        deskshare_video_edl, deskshare_layout, "#{target_dir}/deskshare")
+
+      # Process user video (camera)
+      webcam_edl = BigBlueButton::Events.create_webcam_edl(
+        "#{temp_dir}/#{meeting_id}")
+      user_video_edl = BigBlueButton::Events.edl_match_recording_marks_video(webcam_edl, "#{temp_dir}/#{meeting_id}")
+      BigBlueButton::EDL::Video.dump(user_video_edl)
+
+      user_video_layout = {
+        :width => webcam_width, :height => webcam_height,
+        :areas => [ { :name => :webcam, :x => 0, :y => 0,
+          :width => webcam_width, :height => webcam_height } ]
+      }
+      user_video_file = BigBlueButton::EDL::Video.render(
+        user_video_edl, user_video_layout, "#{target_dir}/webcams")
+
+      #preparing the video merge
+      new_width = deskshare_width + webcam_width
+      x_divider = deskshare_width
+      formats = [
+        {
+          :extension => 'webm',
+          :parameters => [
+            [ '-c:v', 'libvpx', '-crf', '34', '-b:v', '60M',
+              '-threads', '2', '-deadline', 'good', '-cpu-used', '3',
+              '-c:a', 'libvorbis', '-b:a', '48K',
+              '-f', 'webm' ]
+          ],
+          :postprocess => [
+            [ 'mkclean', '--quiet', ':input', ':output' ]
+          ]
+        }
+      ]
+      formats.each do |format|
+        filename = BigBlueButton::EDL::compose_videos(
+          processed_audio_file, user_video_file, deskshare_video_file,
+          new_width, x_divider,
+          format, "#{target_dir}/webcams", audio_offset)
+      end
     end
   end
 

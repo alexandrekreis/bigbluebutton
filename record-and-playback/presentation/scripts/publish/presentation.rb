@@ -1185,6 +1185,10 @@ begin
         metadata_file.close
         BigBlueButton.logger.info("Added playback to metadata.xml")
 
+        # Copy media.xml from process_dir
+        FileUtils.cp("#{$process_dir}/media.xml", package_dir)
+        BigBlueButton.logger.info("Copied media.xml file")
+
         #Create slides.xml
         BigBlueButton.logger.info("Generating xml for slides and chat")
 

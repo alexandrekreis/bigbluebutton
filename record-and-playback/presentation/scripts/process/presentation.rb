@@ -77,6 +77,15 @@ if not FileTest.directory?(target_dir)
     metadata_xml.close
     BigBlueButton.logger.info("Created inital metadata.xml")
 
+    # Create initial media.xml
+    b = Builder::XmlMarkup.new(:indent => 2)
+    mediaxml = b.recording('id' => 'media_info') {
+    }
+    media_xml = File.new("#{target_dir}/media.xml","w")
+    media_xml.write(mediaxml)
+    media_xml.close
+    BigBlueButton.logger.info("Created initial media.xml")
+
     BigBlueButton::AudioProcessor.process("#{temp_dir}/#{meeting_id}", "#{target_dir}/audio")
     events_xml = "#{temp_dir}/#{meeting_id}/events.xml"
     FileUtils.cp(events_xml, target_dir)
@@ -177,17 +186,78 @@ if not FileTest.directory?(target_dir)
       File.open("#{target_dir}/presentation_text.json","w") { |f| f.puts presentation_text.to_json }
     end
 
-    if !Dir["#{raw_archive_dir}/video/*"].empty?
+    processed_audio_file = BigBlueButton::AudioProcessor.get_processed_audio_file("#{temp_dir}/#{meeting_id}", "#{target_dir}/audio")
+
+    has_deskshare = (!Dir["#{raw_archive_dir}/deskshare/*"].empty? && presentation_props['include_deskshare'])
+    has_webcam = !Dir["#{raw_archive_dir}/video/*"].empty?
+
+    #if there's only the webcam video
+    if (has_webcam && !has_deskshare)
+
       webcam_width = presentation_props['video_output_width']
       webcam_height = presentation_props['video_output_height']
-      processed_audio_file = BigBlueButton::AudioProcessor.get_processed_audio_file("#{temp_dir}/#{meeting_id}", "#{target_dir}/audio")
-      BigBlueButton.process_webcam_videos(target_dir, temp_dir, meeting_id, webcam_width, webcam_height, presentation_props['audio_offset'], processed_audio_file)
-    end
 
-    if !Dir["#{raw_archive_dir}/deskshare/*"].empty? and presentation_props['include_deskshare']
+      #updating media.xml with webcam info
+      media = Nokogiri::XML(File.open("#{target_dir}/media.xml"))
+      media_with_webcam = Nokogiri::XML::Builder.with(media.at('recording')) do |xml|
+         xml.webcam{
+            xml.webcam_size(:width => webcam_width, :height => webcam_height)
+         }
+      end
+      media_file = File.new("#{target_dir}/media.xml","w")
+      media = Nokogiri::XML(media.to_xml) { |x| x.noblanks }
+      media_file.write(media.root)
+      media_file.close
+
+      #processing webcams only...
+      BigBlueButton.process_webcam_videos(target_dir, temp_dir, meeting_id, webcam_width, webcam_height, presentation_props['audio_offset'], processed_audio_file)
+
+    #if there's only the deskshare video
+    elsif (!has_webcam && has_deskshare)
+
       deskshare_width = presentation_props['deskshare_output_width']
       deskshare_height = presentation_props['deskshare_output_height']
-      BigBlueButton.process_deskshare_videos(target_dir, temp_dir, meeting_id, deskshare_width, deskshare_height)
+
+      #updating media.xml with deskshare info
+      media = Nokogiri::XML(File.open("#{target_dir}/media.xml"))
+      media_with_deskshare = Nokogiri::XML::Builder.with(media.at('recording')) do |xml|
+         xml.deskshare{
+            xml.deskshare_size(:width => deskshare_width, :height => deskshare_height)
+         }
+      end
+      media_file = File.new("#{target_dir}/media.xml","w")
+      media = Nokogiri::XML(media.to_xml) { |x| x.noblanks }
+      media_file.write(media.root)
+      media_file.close
+
+      #processing deskshare only...
+      BigBlueButton.process_deskshare_videos(target_dir, temp_dir, meeting_id, deskshare_width, deskshare_height, presentation_props['audio_offset'], processed_audio_file)
+
+    #if there are both videos
+    elsif (has_webcam && has_deskshare)
+
+      webcam_width = presentation_props['video_output_width']
+      webcam_height = presentation_props['video_output_height']
+      deskshare_width = presentation_props['deskshare_output_width']
+      deskshare_height = presentation_props['deskshare_output_height']
+
+      #updating media.xml with webcam and deskshare info
+      media = Nokogiri::XML(File.open("#{target_dir}/media.xml"))
+      media_with_webcam = Nokogiri::XML::Builder.with(media.at('recording')) do |xml|
+         xml.webcam{
+            xml.webcam_size(:width => webcam_width, :height => webcam_height)
+         }
+         xml.deskshare{
+            xml.deskshare_size(:width => deskshare_width, :height => deskshare_height)
+         }
+      end
+      media_file = File.new("#{target_dir}/media.xml","w")
+      media = Nokogiri::XML(media.to_xml) { |x| x.noblanks }
+      media_file.write(media.root)
+      media_file.close
+
+      #process both videos
+      BigBlueButton.process_all_videos(target_dir, temp_dir, meeting_id, webcam_width, webcam_height, deskshare_width, deskshare_height, presentation_props['audio_offset'], processed_audio_file)
     end
 
     process_done = File.new("#{recording_dir}/status/processed/#{meeting_id}-presentation.done", "w")

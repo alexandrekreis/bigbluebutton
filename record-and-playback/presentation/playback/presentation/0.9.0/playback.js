@@ -112,12 +112,21 @@ var MEETINGID = params['meetingId'];
 var RECORDINGS = "/presentation/" + MEETINGID;
 var SLIDES_XML = RECORDINGS + '/slides_new.xml';
 var SHAPES_SVG = RECORDINGS + '/shapes.svg';
-var hasVideo = false;
-var syncing = false;
-var masterVideoSeeked = false;
-var primaryMedia;
-var secondaryMedias;
-var allMedias;
+var MEDIA_XML = RECORDINGS + '/media.xml';
+
+var swapped = false;
+var hasWebcam = false;
+var hasDeskshare = false;
+var drawVideosID;
+var webcamVideoResolution = [];
+var deskshareVideoResolution = [];
+var video;
+var deskshareCanvasWidth;
+var deskshareCanvasHeight;
+var webcamCanvasWidth;
+var webcamCanvasHeight;
+var deskshareContext;
+var webcamContext;
 
 /*
  * Sets the title attribute in a thumbnail.
@@ -312,7 +321,6 @@ load_video = function(){
    //document.getElementById("video").style.visibility = "hidden"
    var video = document.createElement("video");
    video.setAttribute('id','video');
-   video.setAttribute('class','webcam');
 
    var webmsource = document.createElement("source");
    webmsource.setAttribute('src', RECORDINGS + '/video/webcams.webm');
@@ -377,101 +385,78 @@ load_audio = function() {
    });
 }
 
-load_deskshare_video = function () {
-   console.log("==Loading deskshare video");
-   var deskshare_video = document.createElement("video");
-   deskshare_video.setAttribute('id','deskshare-video');
+set_deskshare_canvas = function() {
+   console.log("==Creating DESKSHARE video canvas");
 
-   var webmsource = document.createElement("source");
-   webmsource.setAttribute('src', RECORDINGS + '/deskshare/deskshare.webm');
-   webmsource.setAttribute('type','video/webm; codecs="vp8.0, vorbis"');
-   deskshare_video.appendChild(webmsource);
+   hide_video_tag();
+
+   var deskshare_video_canvas = document.createElement("canvas");
+   deskshare_video_canvas.setAttribute('id','deskshare-video-canvas');
+
+   deskshareCanvasWidth = deskshareVideoResolution[0];
+   deskshareCanvasHeight =  deskshareVideoResolution[1];
+
+   console.log("Setting deskshare canvas to: " + deskshareCanvasWidth + "x" + deskshareCanvasHeight);
+   deskshare_video_canvas.setAttribute('width', deskshareCanvasWidth);
+   deskshare_video_canvas.setAttribute('height',deskshareCanvasHeight);
 
    var presentationArea = document.getElementById("presentation-area");
-   presentationArea.insertBefore(deskshare_video,presentationArea.childNodes[0]);
+   presentationArea.insertBefore(deskshare_video_canvas,presentationArea.childNodes[0]);
 
-   setSync();
+    $('#video').on("play", function() {
+       //video = document.getElementById("video");
+       //deskshareContext = document.getElementById("deskshare-video-canvas").getContext("2d");
+       drawVideosID = requestAnimationFrame(drawVideos);
+    });
+    $('#video').on("pause", function() {
+       cancelAnimationFrame(drawVideosID);
+    });
+    $('#video').on("ended", function() {
+       cancelAnimationFrame(drawVideosID);
+    });
 
-   Popcorn("#deskshare-video").on("canplayall", function() {
-      console.log("==Deskshare video loaded");
-      document.dispatchEvent(new CustomEvent('media-ready', {'detail': 'deskshare'}));
-   });
+    video = document.getElementById("video");
+    deskshareContext = document.getElementById("deskshare-video-canvas").getContext("2d");
 }
 
-function setSync() {
-   //master video
-   primaryMedia = Popcorn("#video");
+hide_video_tag = function() {
+   //hide original video tag ,'cause we're gonna use canvas to show the video
+   $("#video").attr("style", "display:none;");
+   $(".acorn-player.bigbluebutton").css("height", "0");
+}
 
-   //slave videos
-   secondaryMedias = [ Popcorn("#deskshare-video") ];
+set_webcam_canvas = function() {
+   console.log("==Creating WEBCAM video canvas");
 
-   allMedias = [primaryMedia].concat(secondaryMedias);
+   var webcam_video_canvas = document.createElement("canvas");
+   webcam_video_canvas.setAttribute('id','webcam-video-canvas');
 
-   //when we play the master video, we play all other videos as well...
-   primaryMedia.on("play", function() {
-      for(i = 0; i < secondaryMedias.length ; i++)
-         secondaryMedias[i].play();
-   });
+   webcamCanvasWidth = webcamVideoResolution[0];
+   webcamCanvasHeight =  webcamVideoResolution[1];
 
-   //when we pause the master video, we sync
-   primaryMedia.on("pause", function() {
-      sync();
-   });
+   console.log("Setting webcam canvas to: " + webcamCanvasWidth + "x" + webcamCanvasHeight);
+   webcam_video_canvas.setAttribute('width',webcamCanvasWidth);
+   webcam_video_canvas.setAttribute('height',webcamCanvasHeight);
 
-   primaryMedia.on("seeking", function() {
-      if(primaryMedia.played().length != 0)
-         masterVideoSeeked = true;
-   });
+   document.getElementById("video-area").appendChild(webcam_video_canvas);
+   webcamContext = document.getElementById("webcam-video-canvas").getContext("2d");
+}
 
-   //when finished seeking, we sync all medias...
-   primaryMedia.on("seeked", function() {
-      if(primaryMedia.paused())
-         sync();
-      else
-         primaryMedia.pause();
-   });
+drawVideos = function() {
+   deskshareContext.drawImage(
+        video,0,0,
+        deskshareCanvasWidth,deskshareCanvasHeight,
+        0,0,deskshareCanvasWidth,deskshareCanvasHeight);
 
 
-   for(i = 0; i < allMedias.length ; i++) {
-
-       allMedias[i].on("waiting", function() {
-          //if one of the medias is 'waiting', we must sync
-          if(!primaryMedia.seeking() && !syncing) {
-             syncing = true;
-             //pause the master video, causing to pause and sync all videos...
-             console.log("syncing videos...");
-             primaryMedia.pause();
-          }
-       });
-
-
-       allMedias[i].on("canplaythrough", function() {
-          if(syncing || masterVideoSeeked) {
-              var allMediasAreReady = true;
-              for(i = 0; i < allMedias.length ; i++)
-                  allMediasAreReady &= (allMedias[i].media.readyState == 4)
-
-              if(allMediasAreReady) {
-                 syncing = false;
-                 masterVideoSeeked = false;
-                 //play the master video, causing to play all videos...
-                 console.log("resuming...");
-                 primaryMedia.play();
-              }
-          }
-       });
+   if(hasWebcam) {
+      webcamContext.drawImage(
+            video,deskshareCanvasWidth,0,
+            webcamCanvasWidth,webcamCanvasHeight,
+            0,0,webcamCanvasWidth,webcamCanvasHeight);
    }
-}
 
-function sync() {
-  for(var i = 0; i < secondaryMedias.length ; i++) {
-     if(secondaryMedias[i].media.readyState > 1) {
-        secondaryMedias[i].pause();
-
-        //set the current time will fire a "canplaythrough" event to tell us that the video can be played...
-        secondaryMedias[i].currentTime(primaryMedia.currentTime());
-     }
-  }
+   drawVideosID = requestAnimationFrame(drawVideos);
 }
 
 load_script = function(file){
@@ -493,12 +478,14 @@ document.addEventListener("DOMContentLoaded", function() {
     google_frame_warning();
   }
 
-  if (checkUrl(RECORDINGS + '/video/webcams.webm') == true) {
-    hasVideo = true;
+
+  loading_media_info();
+  if(hasWebcam)
     $("#audio-area").attr("style", "display:none;");
+
+  if(hasWebcam || hasDeskshare)
     load_video();
-  } else {
-    hasVideo = false;
+  else {
     $("#video-area").attr("style", "display:none;");
     load_audio();
   }
@@ -513,8 +500,12 @@ document.addEventListener("DOMContentLoaded", function() {
     swapVideoPresentation();
   });
 
-  if (checkUrl(RECORDINGS + '/deskshare/deskshare.webm') == true) {
-    load_deskshare_video();
+  if (hasDeskshare) {
+     set_deskshare_canvas();
+     if(hasWebcam) {
+      set_webcam_canvas();
+     }
+     document.dispatchEvent(new CustomEvent('media-ready', {'detail': 'deskshare'}));
   } else {
     // If there is no deskshare at all we must also trigger this event to signal Popcorn
     document.dispatchEvent(new CustomEvent('media-ready', {'detail': 'deskshare'}));
@@ -522,6 +513,40 @@ document.addEventListener("DOMContentLoaded", function() {
 
   resizeComponents();
 }, false);
+
+
+function loading_media_info() {
+  var xmlhttp = new XMLHttpRequest();
+
+  console.log("==Getting media.xml");
+  xmlhttp.open("GET", MEDIA_XML, false);
+  xmlhttp.send();
+  var xmlDoc = xmlhttp.responseXML;
+  if (xmlDoc) {
+    console.log("==Processing media.xml");
+    var mediaelements = xmlDoc.getElementsByTagName("recording")[0];
+
+    var webcam_info = mediaelements.getElementsByTagName("webcam");
+    if(webcam_info != null && webcam_info.length != 0) {
+      hasWebcam = true;
+      var size = webcam_info[0].getElementsByTagName("webcam_size")[0];
+      var w = parseFloat(size.getAttribute("width"));
+      var h = parseFloat(size.getAttribute("height"));
+      webcamVideoResolution[0] = w;
+      webcamVideoResolution[1] = h;
+    }
+
+    var desk_info = mediaelements.getElementsByTagName("deskshare");
+    if(desk_info != null && desk_info.length != 0) {
+      hasDeskshare = true;
+      var size = desk_info[0].getElementsByTagName("deskshare_size")[0];
+      var w = parseFloat(size.getAttribute("width"));
+      var h = parseFloat(size.getAttribute("height"));
+      deskshareVideoResolution[0] = w;
+      deskshareVideoResolution[1] = h;
+    }
+  }
+}
 
 var secondsToWait = 0;
 
@@ -568,6 +593,8 @@ function swapVideoPresentation() {
   var mainSectionChild = $("#main-section").children("[data-swap]");
   var sideSectionChild = $("#side-section").children("[data-swap]");
   swapElements(mainSectionChild[0], sideSectionChild[0]);
+
+  swapped = !swapped;
   resizeComponents();
 
   if (!wasPaused) {
@@ -603,7 +630,17 @@ function swapVideoPresentation() {
 // need to fill 100% height.
 function resizeComponents() {
   var availableHeight = $("body").height();
-  if (hasVideo) {
+
+  if(hasWebcam && hasDeskshare) {
+    if(!swapped) {
+       var webcamCanvasHeight = $("#webcam-video-canvas").outerHeight(true);
+       $("#video-area").css("max-height", webcamCanvasHeight);
+    } else {
+       $("#video-area").css("max-height", "");
+    }
+  }
+
+  if (hasWebcam || hasDeskshare) {
     availableHeight -= $("#video-area .acorn-controls").outerHeight(true);
   } else {
     availableHeight -= $("#audio-area .acorn-controls").outerHeight(true);
